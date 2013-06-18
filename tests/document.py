@@ -216,7 +216,10 @@ class DocumentTest(unittest.TestCase):
         Base.drop_collection()
 
     def test_polymorphic_queries(self):
-        """Ensure that the correct subclasses are returned from a query"""
+        """Ensure that the correct subclasses are returned from a query.
+        Note: a parent class will fetch child classes but an intermedia class
+        will not fetch its child classes.
+        """
         class Animal(Document):
             meta = {'allow_inheritance': True}
         class Fish(Animal): pass
@@ -334,7 +337,7 @@ class DocumentTest(unittest.TestCase):
 
     def test_allow_inheritance(self):
         """Ensure that inheritance may be disabled on simple classes and that
-        _cls and _types will not be used.
+        _cls will not be used.
         """
 
         class Animal(Document):
@@ -353,7 +356,6 @@ class DocumentTest(unittest.TestCase):
         collection = self.db[Animal._get_collection_name()]
         obj = collection.find_one()
         self.assertFalse('_cls' in obj)
-        self.assertFalse('_types' in obj)
 
         Animal.drop_collection()
 
@@ -374,11 +376,10 @@ class DocumentTest(unittest.TestCase):
 
         comment = Comment(content='test')
         self.assertFalse('_cls' in comment.to_mongo())
-        self.assertFalse('_types' in comment.to_mongo())
 
     def test_allow_inheritance_abstract_document(self):
         """Ensure that abstract documents can set inheritance rules and that
-        _cls and _types will not be used.
+        _cls will not be used.
         """
         class FinalDocument(Document):
             meta = {'abstract': True,
@@ -399,7 +400,6 @@ class DocumentTest(unittest.TestCase):
         collection = self.db[Animal._get_collection_name()]
         obj = collection.find_one()
         self.assertFalse('_cls' in obj)
-        self.assertFalse('_types' in obj)
 
         Animal.drop_collection()
 
@@ -1202,7 +1202,6 @@ class DocumentTest(unittest.TestCase):
         }
         self.assertEquals(doc.embedded_field._delta(), (embedded_delta, {}))
         embedded_delta.update({
-            '_types': ['Embedded'],
             '_cls': 'Embedded',
         })
         self.assertEquals(doc._delta(), ({'embedded_field': embedded_delta}, {}))
@@ -1237,7 +1236,6 @@ class DocumentTest(unittest.TestCase):
         self.assertEquals(doc.embedded_field._delta(), ({
             'list_field': ['1', 2, {
                 '_cls': 'Embedded',
-                '_types': ['Embedded'],
                 'string_field': 'hello',
                 'dict_field': {'hello': 'world'},
                 'int_field': 1,
@@ -1248,7 +1246,6 @@ class DocumentTest(unittest.TestCase):
         self.assertEquals(doc._delta(), ({
             'embedded_field.list_field': ['1', 2, {
                 '_cls': 'Embedded',
-                 '_types': ['Embedded'],
                  'string_field': 'hello',
                  'dict_field': {'hello': 'world'},
                  'int_field': 1,
@@ -1277,7 +1274,6 @@ class DocumentTest(unittest.TestCase):
         self.assertEquals(doc._get_changed_fields(), ['embedded_field.list_field'])
         self.assertEquals(doc.embedded_field._delta(), ({
             'list_field': ['1', 2, {
-            '_types': ['Embedded'],
             '_cls': 'Embedded',
             'string_field': 'hello world',
             'int_field': 1,
@@ -1285,7 +1281,6 @@ class DocumentTest(unittest.TestCase):
             'dict_field': {'hello': 'world'}}]}, {}))
         self.assertEquals(doc._delta(), ({
             'embedded_field.list_field': ['1', 2, {
-                '_types': ['Embedded'],
                 '_cls': 'Embedded',
                 'string_field': 'hello world',
                 'int_field': 1,
@@ -1437,7 +1432,6 @@ class DocumentTest(unittest.TestCase):
         }
         self.assertEquals(doc.embedded_field._delta(), (embedded_delta, {}))
         embedded_delta.update({
-            '_types': ['Embedded'],
             '_cls': 'Embedded',
         })
         self.assertEquals(doc._delta(), ({'db_embedded_field': embedded_delta}, {}))
@@ -1472,7 +1466,6 @@ class DocumentTest(unittest.TestCase):
         self.assertEquals(doc.embedded_field._delta(), ({
             'db_list_field': ['1', 2, {
                 '_cls': 'Embedded',
-                '_types': ['Embedded'],
                 'db_string_field': 'hello',
                 'db_dict_field': {'hello': 'world'},
                 'db_int_field': 1,
@@ -1483,7 +1476,6 @@ class DocumentTest(unittest.TestCase):
         self.assertEquals(doc._delta(), ({
             'db_embedded_field.db_list_field': ['1', 2, {
                 '_cls': 'Embedded',
-                 '_types': ['Embedded'],
                  'db_string_field': 'hello',
                  'db_dict_field': {'hello': 'world'},
                  'db_int_field': 1,
@@ -1512,7 +1504,6 @@ class DocumentTest(unittest.TestCase):
         self.assertEquals(doc._get_changed_fields(), ['db_embedded_field.db_list_field'])
         self.assertEquals(doc.embedded_field._delta(), ({
             'db_list_field': ['1', 2, {
-            '_types': ['Embedded'],
             '_cls': 'Embedded',
             'db_string_field': 'hello world',
             'db_int_field': 1,
@@ -1520,7 +1511,6 @@ class DocumentTest(unittest.TestCase):
             'db_dict_field': {'hello': 'world'}}]}, {}))
         self.assertEquals(doc._delta(), ({
             'db_embedded_field.db_list_field': ['1', 2, {
-                '_types': ['Embedded'],
                 '_cls': 'Embedded',
                 'db_string_field': 'hello world',
                 'db_int_field': 1,
@@ -1822,37 +1812,6 @@ class DocumentTest(unittest.TestCase):
 
         promoted_employee.reload()
         self.assertEqual(promoted_employee.details, None)
-
-    def test_mixins_dont_add_to_types(self):
-
-        class Bob(Document): name = StringField()
-
-        Bob.drop_collection()
-
-        p = Bob(name="Rozza")
-        p.save()
-        Bob.drop_collection()
-
-        class Person(Document, Mixin):
-            pass
-
-        Person.drop_collection()
-
-        p = Person(name="Rozza")
-        p.save()
-        self.assertEquals(p._fields.keys(), ['name', 'id'])
-
-        collection = self.db[Person._get_collection_name()]
-        obj = collection.find_one()
-        self.assertEquals(obj['_cls'], 'Person')
-        self.assertEquals(obj['_types'], ['Person'])
-
-
-
-        self.assertEquals(Person.objects.count(), 1)
-        rozza = Person.objects.get(name="Rozza")
-
-        Person.drop_collection()
 
     def test_mixin_inheritance(self):
         class BaseMixIn(object):

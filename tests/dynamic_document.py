@@ -26,8 +26,7 @@ class DynamicDocTest(unittest.TestCase):
         p.age = 34
 
         self.assertEquals(p.to_mongo(),
-            {"_types": ["Person"], "_cls": "Person",
-             "name": "James", "age": 34}
+            {"_cls": "Person", "name": "James", "age": 34}
         )
 
         p.save()
@@ -40,11 +39,11 @@ class DynamicDocTest(unittest.TestCase):
     def test_dynamic_document_delta(self):
         """Ensures simple dynamic documents can delta correctly"""
         p = self.Person(name="James", age=34)
-        self.assertEquals(p._delta(), ({'_types': ['Person'], 'age': 34, 'name': 'James', '_cls': 'Person'}, {}))
+        self.assertEquals(p._delta(), ({'age': 34, 'name': 'James', '_cls': 'Person'}, {}))
 
         p.doc = 123
         del(p.doc)
-        self.assertEquals(p._delta(), ({'_types': ['Person'], 'age': 34, 'name': 'James', '_cls': 'Person'}, {'doc': 1}))
+        self.assertEquals(p._delta(), ({'age': 34, 'name': 'James', '_cls': 'Person'}, {'doc': 1}))
 
     def test_change_scope_of_variable(self):
         """Test changing the scope of a dynamic field has no adverse effects"""
@@ -76,7 +75,7 @@ class DynamicDocTest(unittest.TestCase):
         self.assertEquals(p.misc, {'hello': 'world'})
         collection = self.db[self.Person._get_collection_name()]
         obj = collection.find_one()
-        self.assertEquals(sorted(obj.keys()), ['_cls', '_id', '_types', 'misc', 'name'])
+        self.assertEquals(sorted(obj.keys()), ['_cls', '_id', 'misc', 'name'])
 
         del(p.misc)
         p.save()
@@ -85,7 +84,7 @@ class DynamicDocTest(unittest.TestCase):
         self.assertFalse(hasattr(p, 'misc'))
 
         obj = collection.find_one()
-        self.assertEquals(sorted(obj.keys()), ['_cls', '_id', '_types', 'name'])
+        self.assertEquals(sorted(obj.keys()), ['_cls', '_id', 'name'])
 
     def test_dynamic_document_queries(self):
         """Ensure we can query dynamic fields"""
@@ -170,9 +169,9 @@ class DynamicDocTest(unittest.TestCase):
         embedded_1.list_field = ['1', 2, {'hello': 'world'}]
         doc.embedded_field = embedded_1
 
-        self.assertEquals(doc.to_mongo(), {"_types": ['Doc'], "_cls": "Doc",
+        self.assertEquals(doc.to_mongo(), {"_cls": "Doc",
             "embedded_field": {
-                "_types": ['Embedded'], "_cls": "Embedded",
+                "_cls": "Embedded",
                 "string_field": "hello",
                 "int_field": 1,
                 "dict_field": {"hello": "world"},
@@ -213,14 +212,14 @@ class DynamicDocTest(unittest.TestCase):
         embedded_1.list_field = ['1', 2, embedded_2]
         doc.embedded_field = embedded_1
 
-        self.assertEquals(doc.to_mongo(), {"_types": ['Doc'], "_cls": "Doc",
+        self.assertEquals(doc.to_mongo(), {"_cls": "Doc",
             "embedded_field": {
-                "_types": ['Embedded'], "_cls": "Embedded",
+                "_cls": "Embedded",
                 "string_field": "hello",
                 "int_field": 1,
                 "dict_field": {"hello": "world"},
                 "list_field": ['1', 2,
-                    {"_types": ['Embedded'], "_cls": "Embedded",
+                    {"_cls": "Embedded",
                     "string_field": "hello",
                     "int_field": 1,
                     "dict_field": {"hello": "world"},
@@ -343,7 +342,6 @@ class DynamicDocTest(unittest.TestCase):
         }
         self.assertEquals(doc.embedded_field._delta(), (embedded_delta, {}))
         embedded_delta.update({
-            '_types': ['Embedded'],
             '_cls': 'Embedded',
         })
         self.assertEquals(doc._delta(), ({'embedded_field': embedded_delta}, {}))
@@ -377,7 +375,6 @@ class DynamicDocTest(unittest.TestCase):
         self.assertEquals(doc.embedded_field._delta(), ({
             'list_field': ['1', 2, {
                 '_cls': 'Embedded',
-                '_types': ['Embedded'],
                 'string_field': 'hello',
                 'dict_field': {'hello': 'world'},
                 'int_field': 1,
@@ -388,7 +385,6 @@ class DynamicDocTest(unittest.TestCase):
         self.assertEquals(doc._delta(), ({
             'embedded_field.list_field': ['1', 2, {
                 '_cls': 'Embedded',
-                 '_types': ['Embedded'],
                  'string_field': 'hello',
                  'dict_field': {'hello': 'world'},
                  'int_field': 1,
@@ -418,7 +414,6 @@ class DynamicDocTest(unittest.TestCase):
         self.assertEquals(doc._get_changed_fields(), ['embedded_field.list_field'])
         self.assertEquals(doc.embedded_field._delta(), ({
             'list_field': ['1', 2, {
-            '_types': ['Embedded'],
             '_cls': 'Embedded',
             'string_field': 'hello world',
             'int_field': 1,
@@ -426,7 +421,6 @@ class DynamicDocTest(unittest.TestCase):
             'dict_field': {'hello': 'world'}}]}, {}))
         self.assertEquals(doc._delta(), ({
             'embedded_field.list_field': ['1', 2, {
-                '_types': ['Embedded'],
                 '_cls': 'Embedded',
                 'string_field': 'hello world',
                 'int_field': 1,

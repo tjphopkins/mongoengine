@@ -103,8 +103,6 @@ class BaseField(object):
 
     name = None
 
-    # Fields may have _types inserted into indexes by default
-    _index_with_types = True
     _geo_index = False
 
     # These track each time a Field instance is created. Used to retain order.
@@ -337,7 +335,7 @@ class ComplexBaseField(BaseField):
                                    ' have been saved to the database')
 
                     # If its a document that is not inheritable it won't have
-                    # _types / _cls data so make it a generic reference allows
+                    # _cls data so make it a generic reference allows
                     # us to dereference
                     meta = getattr(v, 'meta', getattr(v, '_meta', {}))
                     if meta and not meta.get('allow_inheritance', True) and not self.field:
@@ -514,7 +512,7 @@ class DocumentMetaclass(type):
             if hasattr(base, '_meta') and not base._meta.get('abstract'):
                 # Ensure that the Document class may be subclassed -
                 # inheritance may be disabled to remove dependency on
-                # additional fields _cls and _types
+                # the additional field _cls 
                 class_name.append(base._class_name)
                 if not base._meta.get('allow_inheritance_defined', True):
                     warnings.warn(
@@ -871,11 +869,10 @@ class BaseDocument(object):
             value = getattr(self, field_name, None)
             if value is not None:
                 data[field.db_field] = field.to_mongo(value)
-        # Only add _cls and _types if allow_inheritance is not False
+        # Only add _cls if allow_inheritance is not False
         if not (hasattr(self, '_meta') and
                 self._meta.get('allow_inheritance', True) == False):
             data['_cls'] = self._class_name
-            data['_types'] = self._superclasses.keys() + [self._class_name]
         if '_id' in data and data['_id'] is None:
             del data['_id']
 
@@ -900,9 +897,6 @@ class BaseDocument(object):
         # class if unavailable
         class_name = son.get(u'_cls', cls._class_name)
         data = dict((str(key), value) for key, value in son.items())
-
-        if '_types' in data:
-            del data['_types']
 
         if '_cls' in data:
             del data['_cls']

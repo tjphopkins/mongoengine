@@ -55,11 +55,10 @@ class Document(BaseDocument):
 
     A :class:`~mongoengine.Document` subclass may be itself subclassed, to
     create a specialised version of the document that will be stored in the
-    same collection. To facilitate this behaviour, `_cls` and `_types`
-    fields are added to documents (hidden though the MongoEngine interface
-    though). To disable this behaviour and remove the dependence on the
-    presence of `_cls` and `_types`, set :attr:`allow_inheritance` to
-    ``False`` in the :attr:`meta` dictionary.
+    same collection. To facilitate this behaviour, the `_cls` field is added
+    to documents (hidden though the MongoEngine interface though). To disable
+    this behaviour and remove the dependence on the presence of `_cls`, set
+    :attr:`allow_inheritance` to ``False`` in the :attr:`meta` dictionary.
 
     A :class:`~mongoengine.Document` may use a **Capped Collection** by
     specifying :attr:`max_documents` and :attr:`max_size` in the :attr:`meta`
@@ -73,11 +72,6 @@ class Document(BaseDocument):
     dictionary. The value should be a list of field names or tuples of field
     names. Index direction may be specified by prefixing the field names with
     a **+** or **-** sign.
-
-    By default, _types will be added to the start of every index (that
-    doesn't contain a list) if allow_inheritence is True. This can be
-    disabled by either setting types to False on the specific index or
-    by setting index_types to False on the meta dictionary for the document.
     """
     __metaclass__ = TopLevelDocumentMetaclass
 
@@ -95,6 +89,18 @@ class Document(BaseDocument):
     def _get_db(cls):
         """Some Model using other db_alias"""
         return get_db(cls._meta.get("db_alias", DEFAULT_CONNECTION_NAME ))
+
+    @classmethod
+    def _get_subdocuments(cls):
+        """Gets the full list of subdocuments that inherit from this document.
+        This will include grand-n-children.
+        """
+        classes = []
+        for subcls in cls.__subclasses__():
+            if isinstance(subcls, TopLevelDocumentMetaclass):
+                classes.append(subcls)
+                classes += subcls._get_subdocuments()
+        return classes
 
     @classmethod
     def _get_collection(cls):

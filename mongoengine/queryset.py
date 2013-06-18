@@ -346,7 +346,11 @@ class QuerySet(object):
         # If inheritance is allowed, only return instances and instances of
         # subclasses of the class being used
         if document._meta.get('allow_inheritance'):
-            self._initial_query = {'_types': self._document._class_name}
+            cls_list = document._get_subdocuments() + [document]
+            cls_list = [c._class_name for c in cls_list]
+            if len(cls_list) > 1:
+                print cls_list
+            self._initial_query = {'_cls': {'$in': cls_list}}
             self._loaded_fields = QueryFieldList(always_include=['_cls'])
         self._cursor_obj = None
         self._limit = None
@@ -406,7 +410,6 @@ class QuerySet(object):
             spec = {'fields': spec}
 
         index_list = []
-        use_types = doc_cls._meta.get('allow_inheritance', True)
         for key in spec['fields']:
             # Get ASCENDING direction from +, DESCENDING from -, and GEO2D from *
             direction = pymongo.ASCENDING
@@ -424,16 +427,6 @@ class QuerySet(object):
             parts = [field.db_field for field in fields]
             key = '.'.join(parts)
             index_list.append((key, direction))
-
-            # Check if a list field is being used, don't use _types if it is
-            if use_types and not all(f._index_with_types for f in fields):
-                use_types = False
-
-        # If _types is being used, prepend it to every specified index
-        index_types = doc_cls._meta.get('index_types', True)
-        allow_inheritance = doc_cls._meta.get('allow_inheritance')
-        if spec.get('types', index_types) and allow_inheritance and use_types and direction is not pymongo.GEO2D:
-            index_list.insert(0, ('_types', 1))
 
         spec['fields'] = index_list
 
@@ -1341,11 +1334,6 @@ class QuerySet(object):
         update = QuerySet._transform_update(self._document, **update)
         query = self._query
 
-        # SERVER-5247 hack
-        remove_types = "_types" in query and ".$." in unicode(update)
-        if remove_types:
-            del query["_types"]
-
         try:
             ret = self._collection.update(query, update, multi=multi,
                                           upsert=upsert, safe=safe_update,
@@ -1376,11 +1364,6 @@ class QuerySet(object):
             write_options = {}
         update = QuerySet._transform_update(self._document, **update)
         query = self._query
-
-        # SERVER-5247 hack
-        remove_types = "_types" in query and ".$." in unicode(update)
-        if remove_types:
-            del query["_types"]
 
         try:
             # Explicitly provide 'multi=False' to newer versions of PyMongo
