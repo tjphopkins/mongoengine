@@ -348,8 +348,6 @@ class QuerySet(object):
         if document._meta.get('allow_inheritance'):
             cls_list = document._get_subdocuments() + [document]
             cls_list = [c._class_name for c in cls_list]
-            if len(cls_list) > 1:
-                print cls_list
             self._initial_query = {'_cls': {'$in': cls_list}}
             self._loaded_fields = QueryFieldList(always_include=['_cls'])
         self._cursor_obj = None
