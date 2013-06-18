@@ -114,7 +114,7 @@ class BaseField(object):
     auto_creation_counter = -1
 
     def __init__(self, db_field=None, name=None, required=False, default=None,
-                 unique=False, unique_with=None, primary_key=False,
+                 primary_key=False,
                  validation=None, choices=None, verbose_name=None, help_text=None):
         self.db_field = (db_field or name) if not primary_key else '_id'
         if name:
@@ -123,8 +123,6 @@ class BaseField(object):
         self.name = None
         self.required = required or primary_key
         self.default = default
-        self.unique = bool(unique or unique_with)
-        self.unique_with = unique_with
         self.primary_key = primary_key
         self.validation = validation
         self.choices = choices
@@ -711,14 +709,6 @@ class TopLevelDocumentMetaclass(DocumentMetaclass):
             meta['queryset_class'] = manager.queryset_class
         new_class.objects = manager
 
-        indicies = meta['indexes'] + abstract_base_indexes
-        user_indexes = [QuerySet._build_index_spec(new_class, spec)
-                        for spec in indicies] + base_indexes
-        new_class._meta['indexes'] = user_indexes
-
-        unique_indexes = cls._unique_with_indexes(new_class)
-        new_class._meta['unique_indexes'] = unique_indexes
-
         for field_name, field in new_class._fields.items():
             # Check for custom primary key
             if field.primary_key:
@@ -737,45 +727,6 @@ class TopLevelDocumentMetaclass(DocumentMetaclass):
             new_class.id = new_class._fields['id']
 
         return new_class
-
-    @classmethod
-    def _unique_with_indexes(cls, new_class, namespace=""):
-        unique_indexes = []
-        for field_name, field in new_class._fields.items():
-            # Generate a list of indexes needed by uniqueness constraints
-            if field.unique:
-                field.required = True
-                unique_fields = [field.db_field]
-
-                # Add any unique_with fields to the back of the index spec
-                if field.unique_with:
-                    if isinstance(field.unique_with, basestring):
-                        field.unique_with = [field.unique_with]
-
-                    # Convert unique_with field names to real field names
-                    unique_with = []
-                    for other_name in field.unique_with:
-                        parts = other_name.split('.')
-                        # Lookup real name
-                        parts = QuerySet._lookup_field(new_class, parts)
-                        name_parts = [part.db_field for part in parts]
-                        unique_with.append('.'.join(name_parts))
-                        # Unique field should be required
-                        parts[-1].required = True
-                    unique_fields += unique_with
-
-                # Add the new index to the list
-                index = [("%s%s" % (namespace, f), pymongo.ASCENDING) for f in unique_fields]
-                unique_indexes.append(index)
-
-            # Grab any embedded document field unique indexes
-            if field.__class__.__name__ == "EmbeddedDocumentField" and field.document_type != new_class:
-                field_namespace = "%s." % field_name
-                unique_indexes += cls._unique_with_indexes(field.document_type,
-                                    field_namespace)
-
-        return unique_indexes
-
 
 class BaseDocument(object):
 

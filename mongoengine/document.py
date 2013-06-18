@@ -127,6 +127,8 @@ class Document(BaseDocument):
                         collection_name, **opts
                     )
             else:
+                if collection_name not in db.collection_names():
+                    db.create_collection(collection_name)
                 cls._collection = db[collection_name]
         return cls._collection
 

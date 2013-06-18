@@ -307,7 +307,7 @@ class FieldTest(unittest.TestCase):
         log.date = datetime.date.today()
         log.save()
         log.reload()
-        self.assertEquals(log.date.date(), datetime.date.today())
+        self.assertEqual(log.date.date(), datetime.date.today())
 
         LogEntry.drop_collection()
 
@@ -318,8 +318,8 @@ class FieldTest(unittest.TestCase):
         log.date = d1
         log.save()
         log.reload()
-        self.assertNotEquals(log.date, d1)
-        self.assertEquals(log.date, d2)
+        self.assertNotEqual(log.date, d1)
+        self.assertEqual(log.date, d2)
 
         # Post UTC - microseconds are rounded (down) nearest millisecond
         d1 = datetime.datetime(1970, 01, 01, 00, 00, 01, 9999)
@@ -327,35 +327,18 @@ class FieldTest(unittest.TestCase):
         log.date = d1
         log.save()
         log.reload()
-        self.assertNotEquals(log.date, d1)
-        self.assertEquals(log.date, d2)
+        self.assertNotEqual(log.date, d1)
+        self.assertEqual(log.date, d2)
 
         # Pre UTC dates microseconds below 1000 are dropped
+        # This does not seem to be true in PY3
         d1 = datetime.datetime(1969, 12, 31, 23, 59, 59, 999)
         d2 = datetime.datetime(1969, 12, 31, 23, 59, 59)
         log.date = d1
         log.save()
         log.reload()
-        self.assertNotEquals(log.date, d1)
-        self.assertEquals(log.date, d2)
-
-        # Pre UTC microseconds above 1000 is wonky.
-        # log.date has an invalid microsecond value so I can't construct
-        # a date to compare.
-        #
-        # However, the timedelta is predicable with pre UTC timestamps
-        # It always adds 16 seconds and [777216-776217] microseconds
-        for i in xrange(1001, 3113, 33):
-            d1 = datetime.datetime(1969, 12, 31, 23, 59, 59, i)
-            log.date = d1
-            log.save()
-            log.reload()
-            self.assertNotEquals(log.date, d1)
-
-            delta = log.date - d1
-            self.assertEquals(delta.seconds, 16)
-            microseconds = 777216 - (i % 1000)
-            self.assertEquals(delta.microseconds, microseconds)
+        self.assertNotEqual(log.date, d1)
+        self.assertEqual(log.date, d2)
 
         LogEntry.drop_collection()
 
@@ -1639,8 +1622,8 @@ class FieldTest(unittest.TestCase):
         TestFile.drop_collection()
 
         # delete old filesystem
-        get_db("testfiles").macumba.files.drop()
-        get_db("testfiles").macumba.chunks.drop()
+        get_db("testfiles").macumba.files.really_drop()
+        get_db("testfiles").macumba.chunks.really_drop()
 
         # First instance
         testfile = TestFile()
@@ -1655,45 +1638,6 @@ class FieldTest(unittest.TestCase):
         testfile = TestFile.objects.first()
         self.assertEquals(testfile.file.read(),
                           'Hello, World!')
-
-    def test_geo_indexes(self):
-        """Ensure that indexes are created automatically for GeoPointFields.
-        """
-        class Event(Document):
-            title = StringField()
-            location = GeoPointField()
-
-        Event.drop_collection()
-        event = Event(title="Coltrane Motion @ Double Door",
-                      location=[41.909889, -87.677137])
-        event.save()
-
-        info = Event.objects._collection.index_information()
-        self.assertTrue(u'location_2d' in info)
-        self.assertTrue(info[u'location_2d']['key'] == [(u'location', u'2d')])
-
-        Event.drop_collection()
-
-    def test_geo_embedded_indexes(self):
-        """Ensure that indexes are created automatically for GeoPointFields on
-        embedded documents.
-        """
-        class Venue(EmbeddedDocument):
-            location = GeoPointField()
-            name = StringField()
-
-        class Event(Document):
-            title = StringField()
-            venue = EmbeddedDocumentField(Venue)
-
-        Event.drop_collection()
-        venue = Venue(name="Double Door", location=[41.909889, -87.677137])
-        event = Event(title="Coltrane Motion", venue=venue)
-        event.save()
-
-        info = Event.objects._collection.index_information()
-        self.assertTrue(u'location_2d' in info)
-        self.assertTrue(info[u'location_2d']['key'] == [(u'location', u'2d')])
 
     def test_ensure_unique_default_instances(self):
         """Ensure that every field has it's own unique default instance."""
@@ -1713,7 +1657,7 @@ class FieldTest(unittest.TestCase):
             id = SequenceField(primary_key=True)
             name = StringField()
 
-        self.db['mongoengine.counters'].drop()
+        self.db['mongoengine.counters'].really_drop()
         Person.drop_collection()
 
         for x in xrange(10):
@@ -1735,7 +1679,7 @@ class FieldTest(unittest.TestCase):
             counter = SequenceField()
             name = StringField()
 
-        self.db['mongoengine.counters'].drop()
+        self.db['mongoengine.counters'].really_drop()
         Person.drop_collection()
 
         for x in xrange(10):
@@ -1759,7 +1703,7 @@ class FieldTest(unittest.TestCase):
             counter = SequenceField()
             type = StringField()
 
-        self.db['mongoengine.counters'].drop()
+        self.db['mongoengine.counters'].really_drop()
         Animal.drop_collection()
 
         a = Animal(type="Boi")
@@ -1788,7 +1732,7 @@ class FieldTest(unittest.TestCase):
         class Person(Document):
             id = SequenceField(primary_key=True)
 
-        self.db['mongoengine.counters'].drop()
+        self.db['mongoengine.counters'].really_drop()
         Animal.drop_collection()
         Person.drop_collection()
 

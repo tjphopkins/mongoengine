@@ -2134,50 +2134,6 @@ class QuerySetTest(unittest.TestCase):
 
         Group.drop_collection()
 
-    def test_types_index(self):
-        """Ensure that and index is used when '_types' is being used in a
-        query.
-        """
-        class BlogPost(Document):
-            date = DateTimeField()
-            meta = {'indexes': ['-date']}
-
-        # Indexes are lazy so use list() to perform query
-        list(BlogPost.objects)
-        info = BlogPost.objects._collection.index_information()
-        info = [value['key'] for key, value in info.iteritems()]
-        self.assertTrue([('_types', 1)] in info)
-        self.assertTrue([('_types', 1), ('date', -1)] in info)
-
-    def test_dont_index_types(self):
-        """Ensure that index_types will, when disabled, prevent _types
-        being added to all indices.
-        """
-        class BlogPost(Document):
-            date = DateTimeField()
-            meta = {'index_types': False,
-                    'indexes': ['-date']}
-
-        # Indexes are lazy so use list() to perform query
-        list(BlogPost.objects)
-        info = BlogPost.objects._collection.index_information()
-        info = [value['key'] for key, value in info.iteritems()]
-        self.assertTrue([('_types', 1)] not in info)
-        self.assertTrue([('date', -1)] in info)
-
-        BlogPost.drop_collection()
-
-        class BlogPost(Document):
-            title = StringField()
-            meta = {'allow_inheritance': False}
-
-        # _types is not used on objects where allow_inheritance is False
-        list(BlogPost.objects)
-        info = BlogPost.objects._collection.index_information()
-        self.assertFalse([('_types', 1)] in info.values())
-
-        BlogPost.drop_collection()
-
     def test_dict_with_custom_baseclass(self):
         """Ensure DictField working with custom base clases.
         """
@@ -2253,6 +2209,8 @@ class QuerySetTest(unittest.TestCase):
                 return self.title
 
         Event.drop_collection()
+        Event.objects._collection.really_ensure_index(
+                [("location", pymongo.GEO2D)])
 
         event1 = Event(title="Coltrane Motion @ Double Door",
                        date=datetime.now() - timedelta(days=1),
@@ -2348,6 +2306,8 @@ class QuerySetTest(unittest.TestCase):
             location = GeoPointField()
 
         Point.drop_collection()
+        Point.objects._collection.really_ensure_index(
+                [("location", pymongo.GEO2D)])
 
         # These points are one degree apart, which (according to Google Maps)
         # is about 110 km apart at this place on the Earth.
@@ -2628,21 +2588,6 @@ class QuerySetTest(unittest.TestCase):
         self.assertEquals([1, 2, 3], numbers)
         Number.drop_collection()
 
-
-    def test_ensure_index(self):
-        """Ensure that manual creation of indexes works.
-        """
-        class Comment(Document):
-            message = StringField()
-
-        Comment.objects.ensure_index('message')
-
-        info = Comment.objects._collection.index_information()
-        info = [(value['key'],
-                 value.get('unique', False),
-                 value.get('sparse', False))
-                for key, value in info.iteritems()]
-        self.assertTrue(([('_types', 1), ('message', 1)], False, False) in info)
 
     def test_where(self):
         """Ensure that where clauses work.
