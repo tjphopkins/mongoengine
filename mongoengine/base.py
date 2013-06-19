@@ -264,22 +264,36 @@ class ComplexBaseField(BaseField):
         instance._data[self.name] = value
         instance._mark_as_changed(self.name)
 
+    def _value_to_python(self, v):
+        from mongoengine import Document
+        if isinstance(v, Document):
+            # We need the id from the saved object to create the DBRef
+            if v.pk is None:
+                self.error('You can only reference documents once they'
+                           ' have been saved to the database')
+            collection = v._get_collection_name()
+            return DBRef(collection, v.pk)
+        elif hasattr(v, 'to_python'):
+            return v.to_python()
+        else:
+            return self.to_python(v)
+
     def to_python(self, value):
         """Convert a MongoDB-compatible type to a Python type.
         """
-        from mongoengine import Document
-
         if isinstance(value, basestring):
             return value
 
         if hasattr(value, 'to_python'):
             return value.to_python()
 
-        is_list = False
         if not hasattr(value, 'items'):
             try:
-                is_list = True
-                value = dict([(k, v) for k, v in enumerate(value)])
+                if self.field:
+                    value = [self.field.to_python(v) for v in value]
+                else:
+                    value = [self._value_to_python(v) for v in value]
+                return value
             except TypeError:  # Not iterable return the value
                 return value
 
@@ -288,20 +302,8 @@ class ComplexBaseField(BaseField):
         else:
             value_dict = {}
             for k, v in value.items():
-                if isinstance(v, Document):
-                    # We need the id from the saved object to create the DBRef
-                    if v.pk is None:
-                        self.error('You can only reference documents once they'
-                                   ' have been saved to the database')
-                    collection = v._get_collection_name()
-                    value_dict[k] = DBRef(collection, v.pk)
-                elif hasattr(v, 'to_python'):
-                    value_dict[k] = v.to_python()
-                else:
-                    value_dict[k] = self.to_python(v)
+                value_dict[k] = self._value_to_python(v)
 
-        if is_list:  # Convert back to a list
-            return [v for k, v in sorted(value_dict.items(), key=operator.itemgetter(0))]
         return value_dict
 
     def to_mongo(self, value):
