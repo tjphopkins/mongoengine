@@ -742,8 +742,9 @@ class BaseDocument(object):
 
         # Assign default values to instance
         for attr_name, field in self._fields.items():
-            value = getattr(self, attr_name, None)
-            setattr(self, attr_name, value)
+            if attr_name not in values:
+                value = getattr(self, attr_name, None).default
+                setattr(self, attr_name, value)
 
         # Set passed values after initialisation
         if self._dynamic:
