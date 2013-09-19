@@ -1,3 +1,4 @@
+from collections import defaultdict
 import warnings
 
 from queryset import QuerySet, QuerySetManager
@@ -7,7 +8,6 @@ from queryset import DO_NOTHING
 from mongoengine import signals
 
 import sys
-import pymongo
 from bson import ObjectId
 import operator
 
@@ -43,10 +43,12 @@ class ValidationError(AssertionError):
 
     def __getattribute__(self, name):
         message = super(ValidationError, self).__getattribute__(name)
-        if name == 'message' and self.field_name:
-            return message + ' ("%s")' % self.field_name
-        else:
-            return message
+        if name == 'message':
+            if self.field_name:
+                message = str(message)
+            if self.errors:
+                message += ' (%s)' % self._format_errors()
+        return message
 
     def _get_message(self):
         return self._message
@@ -72,6 +74,24 @@ class ValidationError(AssertionError):
         if not self.errors:
             return {}
         return build_dict(self.errors)
+
+    def _format_errors(self):
+        """Returns a string listing all errors within a document"""
+
+        def generate_key(value, prefix=''):
+            if isinstance(value, list):
+                value = ' '.join([generate_key(k) for k in value])
+            if isinstance(value, dict):
+                value = ' '.join(
+                        [generate_key(v, k) for k, v in value.iteritems()])
+
+            results = "%s.%s" % (prefix, value) if prefix else value
+            return results
+
+        error_dict = defaultdict(list)
+        for k, v in self.to_dict().iteritems():
+            error_dict[generate_key(v)].append(k)
+        return ' '.join(["%s: %s" % (k, v) for k, v in error_dict.iteritems()])
 
 
 _document_registry = {}
@@ -514,7 +534,7 @@ class DocumentMetaclass(type):
             if hasattr(base, '_meta') and not base._meta.get('abstract'):
                 # Ensure that the Document class may be subclassed -
                 # inheritance may be disabled to remove dependency on
-                # the additional field _cls 
+                # the additional field _cls
                 class_name.append(base._class_name)
                 if not base._meta.get('allow_inheritance_defined', True):
                     warnings.warn(
