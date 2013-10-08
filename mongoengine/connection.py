@@ -42,12 +42,9 @@ def register_connection(alias, name, host='localhost', port=27017,
     # Handle uri style connections
     if "://" in host:
         uri_dict = uri_parser.parse_uri(host)
-        if uri_dict.get('database') is None:
-            raise ConnectionError("If using URI style connection include "\
-                                  "database name in string")
         _connection_settings[alias] = {
             'host': host,
-            'name': uri_dict.get('database'),
+            'name': name,
             'username': uri_dict.get('username'),
             'password': uri_dict.get('password')
         }
@@ -72,7 +69,10 @@ def disconnect(alias=DEFAULT_CONNECTION_NAME):
     global _dbs
 
     if alias in _connections:
-        get_connection(alias=alias).disconnect()
+        conn = get_connection(alias=alias)
+        conn.disconnect()
+        if hasattr(conn, 'close'):
+            conn.close()
         del _connections[alias]
     if alias in _dbs:
         del _dbs[alias]
