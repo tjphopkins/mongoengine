@@ -7,6 +7,7 @@ __all__ = ['ConnectionError', 'connect', 'register_connection',
 
 
 DEFAULT_CONNECTION_NAME = 'default'
+DEFAULT_DB_ALIAS = 'default'
 
 
 class ConnectionError(Exception):
@@ -16,9 +17,11 @@ class ConnectionError(Exception):
 _connection_settings = {}
 _connections = {}
 _dbs = {}
+# Map of DB aliases to settings for the DB, including connection alias
+_db_settings = {}
 
 
-def register_connection(alias, name, host='localhost', port=27017,
+def register_connection(alias, host='localhost', port=27017,
                         is_slave=False, read_preference=False, slaves=None,
                         username=None, password=None, **kwargs):
     """Add a connection.
@@ -44,7 +47,6 @@ def register_connection(alias, name, host='localhost', port=27017,
         uri_dict = uri_parser.parse_uri(host)
         _connection_settings[alias] = {
             'host': host,
-            'name': name,
             'username': uri_dict.get('username'),
             'password': uri_dict.get('password')
         }
@@ -52,7 +54,6 @@ def register_connection(alias, name, host='localhost', port=27017,
         return
 
     _connection_settings[alias] = {
-        'name': name,
         'host': host,
         'port': port,
         'is_slave': is_slave,
@@ -93,7 +94,6 @@ def get_connection(alias=DEFAULT_CONNECTION_NAME, reconnect=False):
         conn_settings = _connection_settings[alias].copy()
 
         if hasattr(pymongo, 'version_tuple'):  # Support for 2.1+
-            conn_settings.pop('name', None)
             conn_settings.pop('slaves', None)
             conn_settings.pop('is_slave', None)
             conn_settings.pop('username', None)
@@ -118,37 +118,51 @@ def get_connection(alias=DEFAULT_CONNECTION_NAME, reconnect=False):
     return _connections[alias]
 
 
-def get_db(alias=DEFAULT_CONNECTION_NAME, reconnect=False):
+def register_db(
+        db_name, db_alias=DEFAULT_DB_ALIAS,
+        connection_alias=DEFAULT_CONNECTION_NAME):
+    assert isinstance(db_name, basestring)
+    assert isinstance(db_alias, basestring)
+    assert isinstance(connection_alias, basestring)
+
+    global _db_settings
+    _db_settings[db_alias] = {
+        'connection_alias': connection_alias,
+        'db_name': db_name,
+    }
+
+def get_db(alias=DEFAULT_DB_ALIAS, reconnect=False):
     global _dbs
+    global _db_settings
+    db_settings = _db_settings[alias]
     if reconnect:
-        disconnect(alias)
+        disconnect(db_settings['connection_alias'])
 
     if alias not in _dbs:
-        conn = get_connection(alias)
-        conn_settings = _connection_settings[alias]
-        _dbs[alias] = conn[conn_settings['name']]
-        # Authenticate if necessary
-        if conn_settings['username'] and conn_settings['password']:
-            _dbs[alias].authenticate(conn_settings['username'],
-                                     conn_settings['password'])
+        conn = get_connection(db_settings['connection_alias'])
+        _dbs[alias] = conn[db_settings['db_name']]
+        if db_settings.get('username') and db_settings.get('password'):
+            _dbs[alias].authenticate(db_settings['username'],
+                                     db_settings['password'])
     return _dbs[alias]
 
 
-def connect(db, alias=DEFAULT_CONNECTION_NAME, **kwargs):
-    """Connect to the database specified by the 'db' argument.
+def connect(alias=DEFAULT_CONNECTION_NAME, **kwargs):
+    """
+    Connect to a server.
 
     Connection settings may be provided here as well if the database is not
     running on the default port on localhost. If authentication is needed,
     provide username and password arguments as well.
 
-    Multiple databases are supported by using aliases.  Provide a separate
+    Multiple connections are supported by using aliases.  Provide a separate
     `alias` to connect to a different instance of :program:`mongod`.
 
     .. versionchanged:: 0.6 - added multiple database support.
     """
     global _connections
     if alias not in _connections:
-        register_connection(alias, db, **kwargs)
+        register_connection(alias, **kwargs)
 
     return get_connection(alias)
 

@@ -8,14 +8,15 @@ from mongoengine.queryset import (QuerySet, QuerySetManager,
                                   MultipleObjectsReturned, DoesNotExist,
                                   QueryFieldList)
 from mongoengine import *
-from mongoengine.connection import get_connection
+from mongoengine.connection import get_connection, register_db
 from mongoengine.tests import query_counter
 
 
 class QuerySetTest(unittest.TestCase):
 
     def setUp(self):
-        connect(db='mongoenginetest')
+        connect()
+        register_db('mongoenginetest')
 
         class Person(Document):
             name = StringField()
@@ -2893,7 +2894,8 @@ class QuerySetTest(unittest.TestCase):
 class QTest(unittest.TestCase):
 
     def setUp(self):
-        connect(db='mongoenginetest')
+        connect()
+        register_db('mongoenginetest')
 
     def test_empty_q(self):
         """Ensure that empty Q objects won't hurt.
@@ -3111,6 +3113,9 @@ class QueryFieldListTest(unittest.TestCase):
         self.assertEqual(q.as_dict(), {'a': {"$slice": 5}})
 
     def test_elem_match(self):
+        connect()
+        register_db('mongoenginetest')
+
         class Foo(EmbeddedDocument):
             shape = StringField()
             color = StringField()

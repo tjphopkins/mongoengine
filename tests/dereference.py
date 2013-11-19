@@ -1,14 +1,15 @@
 import unittest
 
 from mongoengine import *
-from mongoengine.connection import get_db
+from mongoengine.connection import get_db, register_db, connect
 from mongoengine.tests import query_counter
 
 
 class FieldTest(unittest.TestCase):
 
     def setUp(self):
-        connect(db='mongoenginetest')
+        connect()
+        register_db('mongoenginetest')
         self.db = get_db()
 
     def test_list_item_dereference(self):

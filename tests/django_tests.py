@@ -3,6 +3,7 @@
 import unittest
 
 from mongoengine import *
+from mongoengine.connection import register_db
 from mongoengine.django.shortcuts import get_document_or_404
 
 from django.http import Http404
@@ -15,7 +16,8 @@ settings.configure()
 class QuerySetTest(unittest.TestCase):
 
     def setUp(self):
-        connect(db='mongoenginetest')
+        connect()
+        register_db('mongoenginetest')
 
         class Person(Document):
             name = StringField()

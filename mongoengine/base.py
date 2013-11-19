@@ -36,7 +36,10 @@ class ValidationError(AssertionError):
         self.message = message
 
     def __str__(self):
-        return self.message
+        if self.field_name:
+            return "%s (\"%s\")" % (self.message, self.field_name)
+        else:
+            return self.message
 
     def __repr__(self):
         return '%s(%s,)' % (self.__class__.__name__, self.message)

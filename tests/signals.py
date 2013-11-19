@@ -3,6 +3,7 @@ import unittest
 
 from mongoengine import *
 from mongoengine import signals
+from mongoengine.connection import register_db
 
 signal_output = []
 
@@ -20,7 +21,8 @@ class SignalTests(unittest.TestCase):
         return signal_output
 
     def setUp(self):
-        connect(db='mongoenginetest')
+        connect()
+        register_db('mongoenginetest')
         class Author(Document):
             name = StringField()
 

@@ -11,13 +11,14 @@ from fixtures import Base, Mixin, PickleEmbedded, PickleTest
 from mongoengine import *
 from mongoengine.base import NotRegistered, InvalidDocumentError
 from mongoengine.queryset import InvalidQueryError
-from mongoengine.connection import get_db
+from mongoengine.connection import get_db, register_db
 
 
 class DocumentTest(unittest.TestCase):
 
     def setUp(self):
-        connect(db='mongoenginetest')
+        connect()
+        register_db('mongoenginetest')
         self.db = get_db()
 
         class Person(Document):
@@ -2239,9 +2240,9 @@ class DocumentTest(unittest.TestCase):
         """ DB Alias tests """
         # mongoenginetest - Is default connection alias from setUp()
         # Register Aliases
-        register_connection('testdb-1', 'mongoenginetest2')
-        register_connection('testdb-2', 'mongoenginetest3')
-        register_connection('testdb-3', 'mongoenginetest4')
+        register_db('mongoenginetest2', 'testdb-1')
+        register_db('mongoenginetest3', 'testdb-2')
+        register_db('mongoenginetest4', 'testdb-3')
 
         class User(Document):
             name = StringField()

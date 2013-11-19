@@ -6,7 +6,7 @@ import uuid
 from decimal import Decimal
 
 from mongoengine import *
-from mongoengine.connection import get_db
+from mongoengine.connection import get_db, register_db
 from mongoengine.base import _document_registry, NotRegistered
 
 TEST_IMAGE_PATH = os.path.join(os.path.dirname(__file__), 'mongoengine.png')
@@ -15,7 +15,8 @@ TEST_IMAGE_PATH = os.path.join(os.path.dirname(__file__), 'mongoengine.png')
 class FieldTest(unittest.TestCase):
 
     def setUp(self):
-        connect(db='mongoenginetest')
+        connect()
+        register_db('mongoenginetest')
         self.db = get_db()
 
     def test_default_values(self):
@@ -1613,7 +1614,8 @@ class FieldTest(unittest.TestCase):
 
 
     def test_file_multidb(self):
-        register_connection('testfiles', 'testfiles')
+        connect()
+        register_db('testfiles', 'testfiles')
         class TestFile(Document):
             name = StringField()
             file = FileField(db_alias="testfiles",
