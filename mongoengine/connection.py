@@ -131,14 +131,14 @@ def register_db(
         'db_name': db_name,
     }
 
-def get_db(alias=DEFAULT_DB_ALIAS, reconnect=False):
+def get_db(alias=DEFAULT_DB_ALIAS, reconnect=False, refresh=False):
     global _dbs
     global _db_settings
     db_settings = _db_settings[alias]
     if reconnect:
         disconnect(db_settings['connection_alias'])
 
-    if alias not in _dbs:
+    if alias not in _dbs or refresh:
         conn = get_connection(db_settings['connection_alias'])
         _dbs[alias] = conn[db_settings['db_name']]
         if db_settings.get('username') and db_settings.get('password'):
