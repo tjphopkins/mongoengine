@@ -253,14 +253,6 @@ class ComplexBaseField(BaseField):
             # Document class being used rather than a document object
             return self
 
-        if not self._dereference and instance._initialised:
-            from dereference import DeReference
-            self._dereference = DeReference()  # Cached
-            instance._data[self.name] = self._dereference(
-                instance._data.get(self.name), max_depth=1, instance=instance,
-                name=self.name
-            )
-
         value = super(ComplexBaseField, self).__get__(instance, owner)
 
         # Convert lists / values so we can watch for any changes on them
@@ -269,14 +261,6 @@ class ComplexBaseField(BaseField):
             instance._data[self.name] = value
         elif isinstance(value, dict) and not isinstance(value, BaseDict):
             value = BaseDict(value, instance, self.name)
-            instance._data[self.name] = value
-
-        if self._dereference and instance._initialised and \
-            isinstance(value, (BaseList, BaseDict)) and not value._dereferenced:
-            value = self._dereference(
-                value, max_depth=1, instance=instance, name=self.name
-            )
-            value._dereferenced = True
             instance._data[self.name] = value
 
         return value
