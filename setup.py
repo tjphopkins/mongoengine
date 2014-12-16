@@ -47,7 +47,10 @@ setup(name='mongoengine',
       long_description=LONG_DESCRIPTION,
       platforms=['any'],
       classifiers=CLASSIFIERS,
-      install_requires=['pymongo'],
+      install_requires=['pymongo==2.5.0.2'],
+      dependency_links=[
+          "git+ssh://git@github.com/conversocial/mongo-python-driver.git@fcbc98de2a4b045924fccaa7608c628ebadc6946#egg=pymongo-2.5.0.2",
+      ],
       test_suite='tests',
       tests_require=['blinker', 'django>=1.3', 'pillow']
 )
