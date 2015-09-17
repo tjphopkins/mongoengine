@@ -303,8 +303,8 @@ class Document(BaseDocument):
         """
         id_field = self._meta['id_field']
         obj = self.__class__.objects(
-                **{id_field: self[id_field]}
-              ).first().select_related(max_depth=max_depth)
+            **{id_field: self[id_field]}
+        ).first()
         for field in self._fields:
             setattr(self, field, self._reload(field, obj[field]))
         if self._dynamic:
