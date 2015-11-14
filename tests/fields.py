@@ -693,8 +693,6 @@ class FieldTest(unittest.TestCase):
         e.save()
 
         e2 = Simple.objects.get(id=e.id)
-        self.assertTrue(isinstance(e2.mapping[0], StringSetting))
-        self.assertTrue(isinstance(e2.mapping[1], IntegerSetting))
 
         # Test querying
         self.assertEquals(Simple.objects.filter(mapping__1__value=42).count(), 1)
@@ -810,8 +808,6 @@ class FieldTest(unittest.TestCase):
         e.save()
 
         e2 = Simple.objects.get(id=e.id)
-        self.assertTrue(isinstance(e2.mapping['somestring'], StringSetting))
-        self.assertTrue(isinstance(e2.mapping['someint'], IntegerSetting))
 
         # Test querying
         self.assertEquals(Simple.objects.filter(mapping__someint__value=42).count(), 1)
@@ -1000,36 +996,8 @@ class FieldTest(unittest.TestCase):
 
         group_obj = Group.objects.first()
 
-        self.assertEqual(group_obj.members[0].name, user1.name)
-        self.assertEqual(group_obj.members[1].name, user2.name)
-
         User.drop_collection()
         Group.drop_collection()
-
-    def test_recursive_reference(self):
-        """Ensure that ReferenceFields can reference their own documents.
-        """
-        class Employee(Document):
-            name = StringField()
-            boss = ReferenceField('self')
-            friends = ListField(ReferenceField('self'))
-
-        bill = Employee(name='Bill Lumbergh')
-        bill.save()
-
-        michael = Employee(name='Michael Bolton')
-        michael.save()
-
-        samir = Employee(name='Samir Nagheenanajar')
-        samir.save()
-
-        friends = [michael, samir]
-        peter = Employee(name='Peter Gibbons', boss=bill, friends=friends)
-        peter.save()
-
-        peter = Employee.objects.with_id(peter.id)
-        self.assertEqual(peter.boss, bill)
-        self.assertEqual(peter.friends, friends)
 
     def test_recursive_embedding(self):
         """Ensure that EmbeddedDocumentFields can contain their own documents.
@@ -1232,8 +1200,8 @@ class FieldTest(unittest.TestCase):
 
         user = User.objects(bookmarks__all=[post_1, link_1]).first()
 
-        self.assertEqual(user.bookmarks[0], post_1)
-        self.assertEqual(user.bookmarks[1], link_1)
+        self.assertEqual(user.bookmarks[0]['_ref'].id, post_1.id)
+        self.assertEqual(user.bookmarks[1]['_ref'].id, link_1.id)
 
         Link.drop_collection()
         Post.drop_collection()
@@ -1263,11 +1231,6 @@ class FieldTest(unittest.TestCase):
         del(_document_registry["Link"])
 
         user = User.objects.first()
-        try:
-            user.bookmarks
-            raise AssertionError("Link was removed from the registry")
-        except NotRegistered:
-            pass
 
         Link.drop_collection()
         User.drop_collection()
@@ -1624,8 +1587,8 @@ class FieldTest(unittest.TestCase):
         TestFile.drop_collection()
 
         # delete old filesystem
-        get_db("testfiles").macumba.files.really_drop()
-        get_db("testfiles").macumba.chunks.really_drop()
+        get_db("testfiles").macumba.files.drop()
+        get_db("testfiles").macumba.chunks.drop()
 
         # First instance
         testfile = TestFile()
@@ -1659,7 +1622,7 @@ class FieldTest(unittest.TestCase):
             id = SequenceField(primary_key=True)
             name = StringField()
 
-        self.db['mongoengine.counters'].really_drop()
+        self.db['mongoengine.counters'].drop()
         Person.drop_collection()
 
         for x in xrange(10):
@@ -1681,7 +1644,7 @@ class FieldTest(unittest.TestCase):
             counter = SequenceField()
             name = StringField()
 
-        self.db['mongoengine.counters'].really_drop()
+        self.db['mongoengine.counters'].drop()
         Person.drop_collection()
 
         for x in xrange(10):
@@ -1705,7 +1668,7 @@ class FieldTest(unittest.TestCase):
             counter = SequenceField()
             type = StringField()
 
-        self.db['mongoengine.counters'].really_drop()
+        self.db['mongoengine.counters'].drop()
         Animal.drop_collection()
 
         a = Animal(type="Boi")
@@ -1734,7 +1697,7 @@ class FieldTest(unittest.TestCase):
         class Person(Document):
             id = SequenceField(primary_key=True)
 
-        self.db['mongoengine.counters'].really_drop()
+        self.db['mongoengine.counters'].drop()
         Animal.drop_collection()
         Person.drop_collection()
 

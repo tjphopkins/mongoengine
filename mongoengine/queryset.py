@@ -336,10 +336,7 @@ class QuerySet(object):
         self._where_clause = None
         self._loaded_fields = QueryFieldList()
         self._ordering = []
-        self._snapshot = False
-        self._timeout = True
         self._class_check = True
-        self._slave_okay = False
         self._read_preference = None
         self._scalar = []
 
@@ -363,8 +360,8 @@ class QuerySet(object):
         c = self.__class__(self._document, self._collection_obj)
 
         copy_props = ('_initial_query', '_query_obj', '_where_clause',
-                    '_loaded_fields', '_ordering', '_snapshot',
-                    '_timeout', '_limit', '_skip', '_slave_okay', '_hint',
+                    '_loaded_fields', '_ordering',
+                    '_limit', '_skip',  '_hint',
                     '_read_preference',)
 
         for prop in copy_props:
@@ -442,7 +439,7 @@ class QuerySet(object):
             cls.__already_indexed.discard(document)
         cls.__already_indexed.clear()
 
-    def __call__(self, q_obj=None, class_check=True, slave_okay=False, **query):
+    def __call__(self, q_obj=None, class_check=True, **query):
         """Filter the selected documents by calling the
         :class:`~mongoengine.queryset.QuerySet` with a query.
 
@@ -452,8 +449,6 @@ class QuerySet(object):
             objects, only the last one will be used
         :param class_check: If set to False bypass class name check when
             querying collection
-        :param slave_okay: if True, allows this query to be run against a
-            replica secondary.
         :param query: Django-style query keyword arguments
         """
         query = Q(**query)
@@ -489,16 +484,12 @@ class QuerySet(object):
     @property
     def _cursor_args(self):
         cursor_args = {
-            'snapshot': self._snapshot,
-            'timeout': self._timeout,
         }
         if self._read_preference:
             cursor_args['read_preference'] = self._read_preference
-        else:
-            cursor_args['slave_okay'] = self._slave_okay
 
         if self._loaded_fields:
-            cursor_args['fields'] = self._loaded_fields.as_dict()
+            cursor_args['projection'] = self._loaded_fields.as_dict()
         return cursor_args
 
     @property
@@ -1169,34 +1160,6 @@ class QuerySet(object):
             plan = pprint.pformat(plan)
         return plan
 
-    def snapshot(self, enabled):
-        """Enable or disable snapshot mode when querying.
-
-        :param enabled: whether or not snapshot mode is enabled
-
-        ..versionchanged:: 0.5 - made chainable
-        """
-        self._snapshot = enabled
-        return self
-
-    def timeout(self, enabled):
-        """Enable or disable the default mongod timeout when querying.
-
-        :param enabled: whether or not the timeout is used
-
-        ..versionchanged:: 0.5 - made chainable
-        """
-        self._timeout = enabled
-        return self
-
-    def slave_okay(self, enabled):
-        """Enable or disable the slave_okay when querying.
-
-        :param enabled: whether or not the slave_okay is enabled
-        """
-        self._slave_okay = enabled
-        return self
-
     def read_preference(self, read_preference):
         """Specify the read preference when querying.
 
@@ -1206,10 +1169,8 @@ class QuerySet(object):
         return self
 
 
-    def delete(self, safe=False):
+    def delete(self, w=1):
         """Delete the documents matched by the query.
-
-        :param safe: check if the operation succeeded before returning
         """
         doc = self._document
 
@@ -1227,13 +1188,13 @@ class QuerySet(object):
             document_cls, field_name = rule_entry
             rule = doc._meta['delete_rules'][rule_entry]
             if rule == CASCADE:
-                document_cls.objects(**{field_name + '__in': self}).delete(safe=safe)
+                document_cls.objects(**{field_name + '__in': self}).delete(w=w)
             elif rule == NULLIFY:
                 document_cls.objects(**{field_name + '__in': self}).update(
-                        safe_update=safe,
+                        w=w,
                         **{'unset__%s' % field_name: 1})
 
-        self._collection.remove(self._query, safe=safe)
+        self._collection.remove(self._query, w=w)
 
     @classmethod
     def _transform_update(cls, _doc_cls=None, **update):
@@ -1308,11 +1269,9 @@ class QuerySet(object):
 
         return mongo_update
 
-    def update(self, safe_update=True, upsert=False, multi=True, write_options=None, **update):
-        """Perform an atomic update on the fields matched by the query. When
-        ``safe_update`` is used, the number of affected documents is returned.
+    def update(self, w=1, upsert=False, multi=True, write_options=None, **update):
+        """Perform an atomic update on the fields matched by the query.
 
-        :param safe_update: check if the operation succeeded before returning
         :param upsert: Any existing document with that "_id" is overwritten.
         :param write_options: extra keyword arguments for :meth:`~pymongo.collection.Collection.update`
 
@@ -1329,7 +1288,7 @@ class QuerySet(object):
 
         try:
             ret = self._collection.update(query, update, multi=multi,
-                                          upsert=upsert, safe=safe_update,
+                                          upsert=upsert, w=w,
                                           **write_options)
             if ret is not None and 'n' in ret:
                 return ret['n']
@@ -1339,11 +1298,9 @@ class QuerySet(object):
                 raise OperationError(message)
             raise OperationError(u'Update failed (%s)' % unicode(err))
 
-    def update_one(self, safe_update=True, upsert=False, write_options=None, **update):
-        """Perform an atomic update on first field matched by the query. When
-        ``safe_update`` is used, the number of affected documents is returned.
+    def update_one(self, w=1, upsert=False, write_options=None, **update):
+        """Perform an atomic update on first field matched by the query.
 
-        :param safe_update: check if the operation succeeded before returning
         :param upsert: Any existing document with that "_id" is overwritten.
         :param write_options: extra keyword arguments for :meth:`~pymongo.collection.Collection.update`
         :param update: Django-style update keyword arguments
@@ -1362,7 +1319,7 @@ class QuerySet(object):
             # Explicitly provide 'multi=False' to newer versions of PyMongo
             # as the default may change to 'True'
             ret = self._collection.update(query, update, multi=False,
-                                          upsert=upsert, safe=safe_update,
+                                          upsert=upsert, w=w,
                                            **write_options)
 
             if ret is not None and 'n' in ret:

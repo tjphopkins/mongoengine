@@ -12,7 +12,7 @@ class query_counter(object):
     def __enter__(self):
         """ On every with block we need to drop the profile collection. """
         self.db.set_profiling_level(0)
-        self.db.system.profile.really_drop()
+        self.db.system.profile.drop()
         self.db.set_profiling_level(2)
         return self
 

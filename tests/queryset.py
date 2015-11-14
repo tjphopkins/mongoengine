@@ -564,44 +564,6 @@ class QuerySetTest(unittest.TestCase):
         obj_id = Blog.objects.insert(blog1, load_bulk=False)
         self.assertEquals(obj_id.__class__.__name__, 'ObjectId')
 
-    def test_slave_okay(self):
-        """Ensures that a query can take slave_okay syntax
-        """
-        person1 = self.Person(name="User A", age=20)
-        person1.save()
-        person2 = self.Person(name="User B", age=30)
-        person2.save()
-
-        # Retrieve the first person from the database
-        person = self.Person.objects.slave_okay(True).first()
-        self.assertTrue(isinstance(person, self.Person))
-        self.assertEqual(person.name, "User A")
-        self.assertEqual(person.age, 20)
-
-    def test_cursor_args(self):
-        """Ensures the cursor args can be set as expected
-        """
-        p = self.Person.objects
-        # Check default
-        self.assertEqual(p._cursor_args,
-                {'snapshot': False, 'slave_okay': False, 'timeout': True})
-
-        p.snapshot(False).slave_okay(False).timeout(False)
-        self.assertEqual(p._cursor_args,
-                {'snapshot': False, 'slave_okay': False, 'timeout': False})
-
-        p.snapshot(True).slave_okay(False).timeout(False)
-        self.assertEqual(p._cursor_args,
-                {'snapshot': True, 'slave_okay': False, 'timeout': False})
-
-        p.snapshot(True).slave_okay(True).timeout(False)
-        self.assertEqual(p._cursor_args,
-                {'snapshot': True, 'slave_okay': True, 'timeout': False})
-
-        p.snapshot(True).slave_okay(True).timeout(True)
-        self.assertEqual(p._cursor_args,
-                {'snapshot': True, 'slave_okay': True, 'timeout': True})
-
     def test_repeated_iteration(self):
         """Ensure that QuerySet rewinds itself one iteration finishes.
         """
@@ -2130,8 +2092,8 @@ class QuerySetTest(unittest.TestCase):
         group.reload()
 
         self.assertTrue(len(group.members) == 2)
-        self.assertEqual(group.members[0].name, user1.name)
-        self.assertEqual(group.members[1].name, user2.name)
+        self.assertEqual(group.members[0].id, user1.id)
+        self.assertEqual(group.members[1].id, user2.id)
 
         Group.drop_collection()
 
@@ -2210,7 +2172,7 @@ class QuerySetTest(unittest.TestCase):
                 return self.title
 
         Event.drop_collection()
-        Event.objects._collection.really_ensure_index(
+        Event.objects._collection.ensure_index(
                 [("location", pymongo.GEO2D)])
 
         event1 = Event(title="Coltrane Motion @ Double Door",
@@ -2307,7 +2269,7 @@ class QuerySetTest(unittest.TestCase):
             location = GeoPointField()
 
         Point.drop_collection()
-        Point.objects._collection.really_ensure_index(
+        Point.objects._collection.ensure_index(
                 [("location", pymongo.GEO2D)])
 
         # These points are one degree apart, which (according to Google Maps)

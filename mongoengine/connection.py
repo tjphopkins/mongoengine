@@ -1,5 +1,6 @@
 import pymongo
-from pymongo import Connection, ReplicaSetConnection, uri_parser
+from pymongo import MongoClient, uri_parser
+from pymongo.read_preferences import ReadPreference
 
 
 __all__ = ['ConnectionError', 'connect', 'register_connection',
@@ -22,8 +23,8 @@ _db_settings = {}
 
 
 def register_connection(alias, host='localhost', port=27017,
-                        is_slave=False, read_preference=False, slaves=None,
-                        username=None, password=None, **kwargs):
+                        is_slave=False, read_preference=ReadPreference.PRIMARY,
+                        slaves=None, username=None, password=None, **kwargs):
     """Add a connection.
 
     :param alias: the name that will be used to refer to this connection
@@ -107,12 +108,10 @@ def get_connection(alias=DEFAULT_CONNECTION_NAME, reconnect=False):
                 conn_settings['slaves'] = slaves
                 conn_settings.pop('read_preference')
 
-        connection_class = Connection
         if 'replicaSet' in conn_settings:
             conn_settings['hosts_or_uri'] = conn_settings.pop('host', None)
-            connection_class = ReplicaSetConnection
         try:
-            _connections[alias] = connection_class(**conn_settings)
+            _connections[alias] = MongoClient(**conn_settings)
         except Exception, e:
             raise ConnectionError("Cannot connect to database %s :\n%s" % (alias, e))
     return _connections[alias]
