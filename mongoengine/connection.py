@@ -72,9 +72,7 @@ def disconnect(alias=DEFAULT_CONNECTION_NAME):
 
     if alias in _connections:
         conn = get_connection(alias=alias)
-        conn.disconnect()
-        if hasattr(conn, 'close'):
-            conn.close()
+        conn.close()
         del _connections[alias]
     if alias in _dbs:
         del _dbs[alias]
