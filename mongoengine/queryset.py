@@ -485,8 +485,6 @@ class QuerySet(object):
     def _cursor_args(self):
         cursor_args = {
         }
-        if self._read_preference:
-            cursor_args['read_preference'] = self._read_preference
 
         if self._loaded_fields:
             cursor_args['projection'] = self._loaded_fields.as_dict()
@@ -496,8 +494,14 @@ class QuerySet(object):
     def _cursor(self):
         if self._cursor_obj is None:
 
-            self._cursor_obj = self._collection.find(self._query,
-                                                     **self._cursor_args)
+            collection = self._collection
+            if self._read_preference:
+                collection = collection.with_options(
+                    read_preference=self._read_preference)
+                
+            self._cursor_obj = collection.find(
+                self._query, **self._cursor_args)
+
             # Apply where clauses to cursor
             if self._where_clause:
                 self._cursor_obj.where(self._where_clause)
