@@ -513,7 +513,7 @@ class QuerySet(object):
                 self.order_by(*self._document._meta['ordering'])
 
             if self._limit is not None:
-                self._cursor_obj.limit(self._limit - (self._skip or 0))
+                self._cursor_obj.limit(self._limit)
 
             if self._skip is not None:
                 self._cursor_obj.skip(self._skip)
