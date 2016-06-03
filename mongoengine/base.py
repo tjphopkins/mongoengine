@@ -373,9 +373,9 @@ class ComplexBaseField(BaseField):
                 sequence = enumerate(value)
             for k, v in sequence:
                 try:
-                    self.field.validate(v)
+                    self.field._validate(v)
                 except (ValidationError, AssertionError), error:
-                    if hasattr(error, 'errors'):
+                    if getattr(error, 'errors'):
                         errors[k] = error.errors
                     else:
                         errors[k] = error

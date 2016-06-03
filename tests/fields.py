@@ -1794,6 +1794,19 @@ class FieldTest(unittest.TestCase):
         post.comments[1].content = 'here we go'
         post.validate()
 
+    def test_nested_field_validation(self):
+        class Post(Document):
+            title = StringField(required=True)
+            statuses = ListField(
+                StringField(choices=('A', 'B', 'C')), required=True)
+
+        post_valid = Post(title='hello world', statuses=['A', 'C'])
+        post_invalid = Post(title='hello world', statuses=['A', 'D'])
+
+        post_valid.validate()
+        with self.assertRaises(ValidationError):
+            post_invalid.validate()
+
 
 class ValidatorErrorTest(unittest.TestCase):
 
